@@ -466,6 +466,7 @@ function rellenarFormulario(d) {
 function mostrar(vista) {
   $('vista-form').classList.toggle('hidden', vista !== 'form');
   $('vista-plan').classList.toggle('hidden', vista !== 'plan');
+  $('vista-progreso').classList.toggle('hidden', vista !== 'progreso');
   window.scrollTo(0, 0);
 }
 

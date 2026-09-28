@@ -82,6 +82,7 @@
           <p id="peso-cambio" class="hint"></p>
         </div>
         <div class="acciones">
+          <button id="btn-progreso" class="btn">📈 Mi progreso</button>
           <button id="btn-nueva" class="btn sec">Nueva semana</button>
           <button id="btn-editar" class="btn sec">Cambiar mis datos</button>
         </div>
@@ -91,6 +92,44 @@
       <p class="hint semana-hint">Toca un ejercicio para ver cómo se hace y apuntar tus kilos y repeticiones. Algunos ejercicios cambian cada semana.</p>
       <div id="semana" class="semana"></div>
     </section>
+
+    <!-- Mi progreso -->
+    <section id="vista-progreso" class="hidden">
+      <div class="card resumen">
+        <div>
+          <h2>Mi progreso</h2>
+          <p class="sub">Tus semanas, tu peso y tus marcas.</p>
+        </div>
+        <div class="acciones">
+          <button id="btn-volver" class="btn sec">← Volver al plan</button>
+        </div>
+      </div>
+
+      <div id="tiles" class="tiles"></div>
+
+      <div class="card">
+        <h3>Entrenamientos por semana</h3>
+        <p class="hint">La barra clara son los días que tocaban. La barra de color, los que hiciste.</p>
+        <div id="g-semanas" class="grafico"></div>
+        <details class="ver-tabla"><summary>Ver como tabla</summary><div id="t-semanas"></div></details>
+      </div>
+
+      <div class="card">
+        <h3>Tu peso</h3>
+        <p id="nota-peso" class="hint"></p>
+        <div id="g-peso" class="grafico"></div>
+      </div>
+
+      <div class="card">
+        <h3>Tus marcas</h3>
+        <label class="sel-marca">Elige un ejercicio
+          <select id="sel-marca"></select>
+        </label>
+        <p id="nota-marca" class="hint"></p>
+        <div id="g-marca" class="grafico"></div>
+        <details class="ver-tabla"><summary>Ver como tabla</summary><div id="t-marca"></div></details>
+      </div>
+    </section>
   </main>
 
   <footer class="pie">
@@ -99,5 +138,6 @@
 
   <script src="ejercicios.js"></script>
   <script src="app.js"></script>
+  <script src="progreso.js"></script>
 </body>
 </html>
