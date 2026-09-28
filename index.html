@@ -75,6 +75,12 @@
           <div class="barra"><div id="barra-relleno"></div></div>
           <p id="progreso-texto">0 de 0 hechos</p>
         </div>
+        <div class="peso-semana">
+          <label class="campo">Tu peso esta semana
+            <span class="campo-fila"><input type="number" id="peso-semana" inputmode="decimal" min="30" max="250" step="0.1"> kg</span>
+          </label>
+          <p id="peso-cambio" class="hint"></p>
+        </div>
         <div class="acciones">
           <button id="btn-nueva" class="btn sec">Nueva semana</button>
           <button id="btn-editar" class="btn sec">Cambiar mis datos</button>
@@ -82,7 +88,7 @@
       </div>
 
       <div id="consejos" class="card consejos"></div>
-      <p class="hint semana-hint">Toca un ejercicio para ver cómo se hace. Algunos ejercicios cambian cada semana.</p>
+      <p class="hint semana-hint">Toca un ejercicio para ver cómo se hace y apuntar tus kilos y repeticiones. Algunos ejercicios cambian cada semana.</p>
       <div id="semana" class="semana"></div>
     </section>
   </main>

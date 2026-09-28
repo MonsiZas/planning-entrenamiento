@@ -36,7 +36,8 @@ function ej(id, dosis) {
 // Una sesión de fuerza es una lista de huecos. Cada hueco tiene opciones (o) y una dosis opcional (d).
 // Los ejercicios principales tienen una sola opción: así puedes ver si mejoras semana a semana.
 function huecos(lista, p, v) {
-  return lista.map((h) => ej(elegir(h.o, v), h.d || `${p.series} × ${p.reps}`));
+  // Los huecos sin dosis propia son series con repeticiones: ahí puedes apuntar tus marcas.
+  return lista.map((h) => ({ ...ej(elegir(h.o, v), h.d || `${p.series} × ${p.reps}`), marca: !h.d }));
 }
 
 const SESIONES = {
@@ -301,7 +302,7 @@ function generarPlan(datos, semana) {
     const s = SESIONES[id];
     // Si la misma sesión sale dos veces en la semana, la segunda usa otros ejercicios.
     const vez = ids.slice(0, pos).filter((x) => x === id).length;
-    return { dia: i, id, titulo: s.titulo, categoria: s.categoria, icono: s.icono, ...s.crear(p, f, datos.nivel, semana + vez) };
+    return { dia: i, id, titulo: s.titulo, categoria: s.categoria, lugar: s.lugar, icono: s.icono, ...s.crear(p, f, datos.nivel, semana + vez) };
   });
 }
 
@@ -351,10 +352,88 @@ function guardar(estado) {
   }
 }
 
+// Datos que se guardan a lo largo del tiempo (las versiones viejas no los tienen).
+// marcas:    { [lunes]: { [día]: { [idEjercicio]: { kg, reps }, _carrera: { km, min } } } }
+// pesos:     { [lunes]: kg }
+// historial: { [lunes]: { hechos, total } }  → semanas ya terminadas
+function completarEstado(e) {
+  if (!e) return e;
+  e.marcas = e.marcas || {};
+  e.pesos = e.pesos || {};
+  e.historial = e.historial || {};
+  return e;
+}
+
+// ---------- Marcas ----------
+
+const CARRERA = '_carrera';
+const num = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
+
+// Tipo de registro de un día: carrera (km y tiempo) o nada.
+const esCarrera = (d) => d.lugar === 'correr' || d.id === 'gym_cardio';
+
+function ritmo(m) {
+  if (!m || !m.km || !m.min) return '';
+  const s = Math.round((m.min / m.km) * 60);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} min/km`;
+}
+
+function textoMarca(m, clave) {
+  if (!m) return '';
+  if (clave === CARRERA) {
+    const partes = [m.km && `${num(m.km)} km`, m.min && `${num(m.min)} min`, ritmo(m)].filter(Boolean);
+    return partes.join(' · ');
+  }
+  if (m.kg && m.reps) return `${num(m.kg)} kg × ${m.reps}`;
+  if (m.kg) return `${num(m.kg)} kg`;
+  if (m.reps) return `${m.reps} reps`;
+  return '';
+}
+
+function marcaDe(dia, clave) {
+  const sem = estado.marcas[estado.semana];
+  return sem && sem[dia] && sem[dia][clave];
+}
+
+function ponerMarca(dia, clave, m) {
+  const sem = (estado.marcas[estado.semana] = estado.marcas[estado.semana] || {});
+  const d = (sem[dia] = sem[dia] || {});
+  if (Object.keys(m).length) d[clave] = m;
+  else delete d[clave];
+  if (!Object.keys(d).length) delete sem[dia];
+  if (!Object.keys(sem).length) delete estado.marcas[estado.semana];
+}
+
+// La marca más reciente de ese ejercicio antes de este día.
+function ultimaMarca(clave, dia) {
+  const ahora = numeroSemana(estado.semana) * 7 + dia;
+  let mejor = null;
+  let orden = -Infinity;
+  Object.entries(estado.marcas).forEach(([lunes, dias]) => {
+    Object.entries(dias).forEach(([d, marcas]) => {
+      const o = numeroSemana(lunes) * 7 + Number(d);
+      if (marcas[clave] && o < ahora && o > orden) { orden = o; mejor = marcas[clave]; }
+    });
+  });
+  return mejor;
+}
+
+// El peso más reciente antes de esta semana.
+function pesoAnterior() {
+  const ahora = numeroSemana(estado.semana);
+  let mejor = null;
+  let orden = -Infinity;
+  Object.entries(estado.pesos).forEach(([lunes, kg]) => {
+    const o = numeroSemana(lunes);
+    if (o < ahora && o > orden) { orden = o; mejor = kg; }
+  });
+  return mejor;
+}
+
 // ---------- Interfaz ----------
 
 const $ = (id) => document.getElementById(id);
-let estado = cargar();
+let estado = completarEstado(cargar());
 
 function pintarChipsDias(seleccion) {
   const cont = $('dias');
@@ -390,11 +469,73 @@ function mostrar(vista) {
   window.scrollTo(0, 0);
 }
 
-// Un paso es texto. Un ejercicio se abre al tocarlo para ver cómo se hace.
-function pintarEjercicio(e) {
+// Campos para apuntar una marca. Cada campo sabe su día, su ejercicio y qué guarda.
+const CAMPOS = {
+  kg:   { etiqueta: 'kg', paso: '0.5', max: 500 },
+  reps: { etiqueta: 'reps', paso: '1', max: 200 },
+  km:   { etiqueta: 'km', paso: '0.01', max: 200 },
+  min:  { etiqueta: 'minutos', paso: '1', max: 1000 },
+};
+
+function pintarRegistro(dia, clave, campos, extra = '') {
+  const m = marcaDe(dia, clave) || {};
+  const ult = ultimaMarca(clave, dia);
+  const inputs = campos.map((c) => {
+    const k = CAMPOS[c];
+    return `<label class="campo">${k.etiqueta}<input type="number" inputmode="decimal" min="0" max="${k.max}" step="${k.paso}"` +
+      ` data-dia="${dia}" data-clave="${clave}" data-campo="${c}" value="${m[c] ?? ''}"></label>`;
+  }).join('');
+  return `<div class="registro" data-dia="${dia}" data-clave="${clave}">${inputs}${extra}</div>` +
+    (ult ? `<p class="ultima">Última vez: ${textoMarca(ult, clave)}</p>` : '');
+}
+
+// Un paso es texto. Un ejercicio se abre al tocarlo para ver cómo se hace (y apuntar tu marca).
+function pintarEjercicio(e, d) {
   if (typeof e === 'string') return `<li class="paso">${e}</li>`;
-  return `<li class="ej"><details><summary><span class="ej-nombre">${e.nombre}</span>` +
-    `<span class="dosis">${e.dosis}</span></summary><p class="como">${e.como}</p></details></li>`;
+  const hecho = e.marca && textoMarca(marcaDe(d.dia, e.id), e.id);
+  const registro = e.marca ? pintarRegistro(d.dia, e.id, d.lugar === 'gym' ? ['kg', 'reps'] : ['reps']) : '';
+  return `<li class="ej" data-clave="${e.id}"><details><summary><span class="ej-nombre">${e.nombre}</span>` +
+    `<span class="dosis${hecho ? ' marcado' : ''}" data-dosis="${e.dosis}">${hecho || e.dosis}</span></summary>` +
+    `<p class="como">${e.como}</p>${registro}</details></li>`;
+}
+
+// Guarda lo que escribes en una casilla, sin volver a pintar todo (así no se cierra nada).
+function alCambiarMarca(ev) {
+  const input = ev.target;
+  if (!input.dataset.campo) return;
+  const caja = input.closest('.registro');
+  const dia = Number(caja.dataset.dia);
+  const clave = caja.dataset.clave;
+  const m = {};
+  caja.querySelectorAll('input').forEach((el) => {
+    const v = Number(el.value);
+    const ok = el.value !== '' && el.checkValidity() && v > 0;
+    el.setAttribute('aria-invalid', el.value !== '' && !ok ? 'true' : 'false');
+    if (ok) m[el.dataset.campo] = v;
+  });
+  ponerMarca(dia, clave, m);
+  guardar(estado);
+
+  const texto = textoMarca(marcaDe(dia, clave), clave);
+  if (clave === CARRERA) {
+    caja.querySelector('.ritmo').textContent = ritmo(m);
+  } else {
+    const dosis = caja.closest('li').querySelector('.dosis');
+    dosis.textContent = texto || dosis.dataset.dosis;
+    dosis.classList.toggle('marcado', !!texto);
+  }
+}
+
+function pintarPeso() {
+  const kg = estado.pesos[estado.semana];
+  const antes = pesoAnterior();
+  $('peso-semana').value = kg ?? '';
+  let txt = '';
+  if (kg && antes) {
+    const dif = Math.round((kg - antes) * 10) / 10;
+    txt = dif === 0 ? 'Igual que la última vez' : `${dif > 0 ? '▲' : '▼'} ${num(Math.abs(dif))} kg desde la última vez`;
+  }
+  $('peso-cambio').textContent = txt;
 }
 
 function pintarPlan() {
@@ -414,12 +555,17 @@ function pintarPlan() {
     consejos.querySelector('ul').appendChild(li);
   });
 
+  pintarPeso();
+
+  // Recordamos qué ejercicios estaban abiertos para dejarlos igual.
   const semana = $('semana');
+  const abiertos = [...semana.querySelectorAll('details[open]')].map((el) => el.closest('.dia').dataset.dia + '|' + el.closest('li').dataset.clave);
   semana.innerHTML = '';
   plan.forEach((d) => {
     const div = document.createElement('div');
     const esHoy = d.dia === hoy;
     div.className = 'dia' + (d.descanso ? ' descanso' : '') + (hechos[d.dia] ? ' hecho' : '') + (esHoy ? ' hoy' : '');
+    div.dataset.dia = d.dia;
 
     const top = document.createElement('div');
     top.className = 'dia-top';
@@ -434,7 +580,11 @@ function pintarPlan() {
       div.insertAdjacentHTML('beforeend', '<h3>😴 Descanso</h3><p class="meta">Descansa, camina o estira un poco.</p>');
     } else {
       div.insertAdjacentHTML('beforeend',
-        `<h3>${d.icono} ${d.titulo}</h3><p class="meta">${d.meta}</p><ul>${d.ejercicios.map(pintarEjercicio).join('')}</ul>`);
+        `<h3>${d.icono} ${d.titulo}</h3><p class="meta">${d.meta}</p><ul>${d.ejercicios.map((e) => pintarEjercicio(e, d)).join('')}</ul>`);
+      if (esCarrera(d)) {
+        div.insertAdjacentHTML('beforeend', '<p class="apunta">📝 Apunta tu carrera</p>' +
+          pintarRegistro(d.dia, CARRERA, ['km', 'min'], `<span class="ritmo">${ritmo(marcaDe(d.dia, CARRERA))}</span>`));
+      }
       const chk = document.createElement('label');
       chk.className = 'hecho-check';
       chk.innerHTML = '<input type="checkbox"> <span>Hecho</span>';
@@ -448,6 +598,9 @@ function pintarPlan() {
       div.appendChild(chk);
     }
     semana.appendChild(div);
+  });
+  semana.querySelectorAll('details').forEach((el) => {
+    if (abiertos.includes(el.closest('.dia').dataset.dia + '|' + el.closest('li').dataset.clave)) el.open = true;
   });
 
   const total = datos.dias.length;
@@ -471,15 +624,29 @@ $('form-datos').addEventListener('submit', (ev) => {
   $('error').textContent = '';
 
   const datos = { nombre: $('nombre').value.trim(), edad, peso, nivel: $('nivel').value, objetivo: $('objetivo').value, dias, lugares };
-  // Si cambian los días, reiniciamos lo marcado como hecho.
+  // Si cambian los días, reiniciamos lo marcado como hecho. Las marcas y pesos se quedan.
   const mismosDias = estado && JSON.stringify(estado.datos.dias.slice().sort()) === JSON.stringify(dias.slice().sort());
-  estado = { datos, hechos: mismosDias ? estado.hechos : {}, semana: lunesDe(new Date()) };
+  const semana = lunesDe(new Date());
+  estado = completarEstado({ ...estado, datos, hechos: mismosDias ? estado.hechos : {}, semana });
+  estado.pesos[semana] = peso;
   guardar(estado);
   pintarPlan();
   mostrar('plan');
 });
 
 $('dias').addEventListener('change', actualizarContador);
+$('semana').addEventListener('change', alCambiarMarca);
+$('peso-semana').addEventListener('change', () => {
+  const el = $('peso-semana');
+  const v = Number(el.value);
+  const ok = el.value !== '' && el.checkValidity() && v > 0;
+  el.setAttribute('aria-invalid', el.value !== '' && !ok ? 'true' : 'false');
+  if (!ok) return;
+  estado.pesos[estado.semana] = v;
+  estado.datos.peso = v; // Los consejos (agua, proteína) usan tu peso más nuevo.
+  guardar(estado);
+  pintarPlan();
+});
 $('btn-editar').addEventListener('click', () => { rellenarFormulario(estado.datos); mostrar('form'); });
 $('btn-nueva').addEventListener('click', () => {
   if (!confirm('¿Empezar una semana nueva? Se borran los "Hecho" de esta semana.')) return;
@@ -492,9 +659,11 @@ $('btn-nueva').addEventListener('click', () => {
 // ---------- Inicio ----------
 
 if (estado && estado.datos) {
-  // Si empezó una semana nueva, reiniciamos lo marcado.
+  // Si empezó una semana nueva, guardamos la anterior en el historial y reiniciamos lo marcado.
   const lunes = lunesDe(new Date());
   if (estado.semana !== lunes) {
+    const total = estado.datos.dias.length;
+    estado.historial[estado.semana] = { hechos: estado.datos.dias.filter((i) => estado.hechos[i]).length, total };
     estado.hechos = {};
     estado.semana = lunes;
     guardar(estado);
