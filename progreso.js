@@ -193,7 +193,9 @@ function graficoLinea(cont, puntos, serie, nombre) {
 
   // Etiqueta directa solo en el último valor.
   const u = puntos[puntos.length - 1];
-  const etqFinal = el('text', { x: Math.min(X(u.lunes), f.w - 4), y: Y(u.y) - 10, class: 'etq', 'text-anchor': puntos.length > 1 ? 'end' : 'middle' }, f.svg);
+  // Si la línea llega bajando, la etiqueta va debajo del punto para no pisar la línea.
+  const baja = puntos.length > 1 && Y(puntos[puntos.length - 2].y) < Y(u.y);
+  const etqFinal = el('text', { x: Math.min(X(u.lunes), f.w - 4), y: baja ? Y(u.y) + 20 : Y(u.y) - 10, class: 'etq', 'text-anchor': puntos.length > 1 ? 'end' : 'middle' }, f.svg);
   etqFinal.textContent = serie.fmt(u.y);
 
   const zona = el('rect', { x: f.M.l - 12, y: f.M.t, width: f.iw + 24, height: f.ih, class: 'zona' }, f.svg);

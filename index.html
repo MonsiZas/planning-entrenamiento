@@ -62,6 +62,12 @@
         <p class="error" id="error"></p>
         <button type="submit" class="btn">Crear mi plan</button>
       </form>
+      <div class="inicio-copia">
+        <p class="hint">¿Ya usabas la app en otro móvil u ordenador?</p>
+        <button id="btn-cargar-inicio" class="btn sec">Cargar mi copia</button>
+        <input type="file" id="archivo-copia-inicio" accept=".json,application/json" hidden>
+        <p id="aviso-inicio" class="aviso" role="status"></p>
+      </div>
     </section>
 
     <!-- Plan semanal -->
@@ -129,15 +135,27 @@
         <div id="g-marca" class="grafico"></div>
         <details class="ver-tabla"><summary>Ver como tabla</summary><div id="t-marca"></div></details>
       </div>
+
+      <div class="card">
+        <h3>💾 Copia de seguridad</h3>
+        <p class="hint">Tus datos están solo en este navegador. Si lo borras o cambias de móvil, se pierden. Descarga una copia de vez en cuando.</p>
+        <div class="acciones copia-botones">
+          <button id="btn-descargar" class="btn">Descargar copia</button>
+          <button id="btn-cargar" class="btn sec">Cargar copia</button>
+          <input type="file" id="archivo-copia" accept=".json,application/json" hidden>
+        </div>
+        <p id="aviso-copia" class="aviso" role="status"></p>
+      </div>
     </section>
   </main>
 
   <footer class="pie">
-    Tus datos se guardan solo en este navegador. Si tienes dudas de salud, habla con un médico antes de entrenar.
+    Tus datos se guardan solo en este navegador. Puedes hacer una copia en «Mi progreso». Si tienes dudas de salud, habla con un médico antes de entrenar.
   </footer>
 
   <script src="ejercicios.js"></script>
   <script src="app.js"></script>
   <script src="progreso.js"></script>
+  <script src="copia.js"></script>
 </body>
 </html>

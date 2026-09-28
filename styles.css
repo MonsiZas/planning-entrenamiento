@@ -258,4 +258,12 @@ form .btn { width: 100%; margin-top: 4px; }
 .ver-tabla th, .ver-tabla td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .ver-tabla th { color: var(--muted); font-weight: 600; }
 
+/* ---------- Copia de seguridad ---------- */
+.copia-botones { margin-top: 10px; }
+.aviso { margin: 10px 0 0; font-size: .9rem; color: var(--muted); min-height: 1.2em; }
+.aviso.ok { color: var(--ok); font-weight: 600; }
+.aviso.error { color: var(--error); font-weight: 600; }
+.inicio-copia { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; text-align: center; }
+.inicio-copia .hint { margin: 0 0 8px; }
+
 .pie { text-align: center; color: var(--muted); font-size: .8rem; padding: 16px 16px 32px; }
