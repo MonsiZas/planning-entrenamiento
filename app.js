@@ -19,39 +19,96 @@ const NIVELES = {
 };
 
 // ---------- Biblioteca de sesiones ----------
-// Cada sesión devuelve { meta, ejercicios } según el nivel (p) y un factor de duración (f).
+// Cada sesión devuelve { meta, ejercicios } según el nivel (p), un factor de duración (f),
+// el nivel por nombre y la variante de la semana (v).
+// Un ejercicio puede ser un texto (un paso) o un objeto { id, nombre, dosis, como }.
 
 const min = (base, f) => Math.round((base * f) / 5) * 5;
+
+// Coge una opción de la lista según la variante. Con una sola opción, el ejercicio es fijo.
+const elegir = (opciones, v) => opciones[v % opciones.length];
+
+function ej(id, dosis) {
+  const e = EJERCICIOS[id];
+  return { id, nombre: e.nombre, dosis, como: e.como };
+}
+
+// Una sesión de fuerza es una lista de huecos. Cada hueco tiene opciones (o) y una dosis opcional (d).
+// Los ejercicios principales tienen una sola opción: así puedes ver si mejoras semana a semana.
+function huecos(lista, p, v) {
+  return lista.map((h) => ej(elegir(h.o, v), h.d || `${p.series} × ${p.reps}`));
+}
 
 const SESIONES = {
   gym_full: {
     titulo: 'Cuerpo completo', categoria: 'fuerza', lugar: 'gym', icono: '🏋️',
-    crear: (p, f) => ({
+    crear: (p, f, nivel, v) => ({
       meta: `Gimnasio · ${min(45, Math.min(f, 1.3))} min · ${p.series} series de ${p.reps} reps`,
-      ejercicios: ['Sentadilla', 'Press de banca', 'Remo con mancuerna', 'Peso muerto rumano', 'Press de hombros', 'Plancha: 3 × 30-45 s'],
+      ejercicios: huecos([
+        { o: ['sentadilla'] },
+        { o: ['press_banca'] },
+        { o: ['remo_mancuerna', 'jalon', 'remo_polea'] },
+        { o: ['peso_muerto_rumano', 'hip_thrust'] },
+        { o: ['press_hombro_mancuernas', 'press_militar', 'elevaciones_laterales'] },
+        { o: ['plancha', 'dead_bug', 'plancha_lateral'], d: '3 × 30-45 s' },
+      ], p, v),
     }),
   },
   gym_superior: {
     titulo: 'Tren superior', categoria: 'fuerza', lugar: 'gym', icono: '🏋️',
-    crear: (p) => ({
+    crear: (p, f, nivel, v) => ({
       meta: `Gimnasio · 50 min · ${p.series} series de ${p.reps} reps`,
-      ejercicios: ['Press de banca', 'Jalón al pecho', 'Press militar', 'Remo sentado en polea', 'Curl de bíceps', 'Extensión de tríceps en polea'],
+      ejercicios: huecos([
+        { o: ['press_banca'] },
+        { o: ['jalon', 'dominadas'] },
+        { o: ['press_militar', 'press_hombro_mancuernas'] },
+        { o: ['remo_polea', 'remo_barra', 'remo_mancuerna'] },
+        { o: ['curl_biceps', 'curl_martillo'] },
+        { o: ['triceps_polea', 'fondos_paralelas'] },
+      ], p, v),
     }),
   },
   gym_inferior: {
     titulo: 'Tren inferior', categoria: 'fuerza', lugar: 'gym', icono: '🏋️',
-    crear: (p) => ({
+    crear: (p, f, nivel, v) => ({
       meta: `Gimnasio · 50 min · ${p.series} series de ${p.reps} reps`,
-      ejercicios: ['Sentadilla', 'Peso muerto rumano', 'Prensa de piernas', 'Zancadas', 'Elevación de gemelos', 'Plancha lateral: 3 × 30 s'],
+      ejercicios: huecos([
+        { o: ['sentadilla'] },
+        { o: ['peso_muerto_rumano'] },
+        { o: ['prensa', 'sentadilla_goblet'] },
+        { o: ['zancadas', 'zancada_bulgara', 'step_up'] },
+        { o: ['curl_femoral', 'hip_thrust'] },
+        { o: ['gemelos'] },
+      ], p, v),
     }),
+  },
+  gym_circuito: {
+    titulo: 'Circuito de fuerza', categoria: 'fuerza', lugar: 'gym', icono: '🔁',
+    crear: (p, f, nivel, v) => {
+      const rondas = Math.max(3, Math.round(3 * f));
+      return {
+        meta: `Gimnasio · ${rondas * 8 + 10} min · ${rondas} rondas`,
+        ejercicios: [
+          'Calienta 5 min en cinta o bici',
+          `${rondas} rondas seguidas. Descansa solo 1-2 min al final de cada ronda.`,
+          ...huecos([
+            { o: ['sentadilla_goblet', 'zancadas'], d: '12 reps' },
+            { o: ['remo_mancuerna', 'remo_polea'], d: '12 reps' },
+            { o: ['press_mancuernas', 'flexiones'], d: '12 reps' },
+            { o: ['swing', 'step_up'], d: '15 reps' },
+            { o: ['mountain_climbers', 'plancha_toques'], d: '30 s' },
+          ], p, v),
+        ],
+      };
+    },
   },
   gym_cardio: {
     titulo: 'Cardio en máquina', categoria: 'cardio', lugar: 'gym', icono: '🚴',
-    crear: (p, f) => ({
+    crear: (p, f, nivel, v) => ({
       meta: `Gimnasio · ${min(30, f)} min`,
       ejercicios: [
         'Calienta 5 min suave',
-        `${min(20, f)} min en cinta, bici o elíptica a ritmo cómodo`,
+        `${min(20, f)} min en ${elegir(['cinta', 'bici', 'elíptica', 'remo'], v)} a ritmo cómodo`,
         'Si te sientes bien: 5 × (1 min fuerte + 1 min suave)',
         'Termina con 5 min suave y estira',
       ],
@@ -59,31 +116,67 @@ const SESIONES = {
   },
   casa_fuerza: {
     titulo: 'Fuerza sin material', categoria: 'fuerza', lugar: 'casa', icono: '🏠',
-    crear: (p) => ({
+    crear: (p, f, nivel, v) => ({
       meta: `Casa · 35 min · ${p.series} series de ${p.reps} reps`,
-      ejercicios: ['Flexiones (de rodillas si cuesta)', 'Sentadillas', 'Zancadas', 'Fondos en silla', 'Puente de glúteo', 'Plancha: 3 × 30-45 s'],
+      ejercicios: huecos([
+        { o: ['flexiones', 'flexiones_pies_elevados', 'pike_flexiones'] },
+        { o: ['sentadilla_casa', 'sentadilla_pausa'] },
+        { o: ['zancadas', 'zancada_bulgara', 'step_up'] },
+        { o: ['remo_mesa', 'remo_toalla', 'superman'] },
+        { o: ['puente_gluteo', 'puente_una_pierna'] },
+        { o: ['fondos_silla'] },
+        { o: ['plancha', 'bird_dog', 'dead_bug'], d: '3 × 30-45 s' },
+      ], p, v),
+    }),
+  },
+  casa_core: {
+    titulo: 'Core y abdomen', categoria: 'core', lugar: 'libre', icono: '🎯',
+    crear: (p, f, nivel, v) => ({
+      meta: 'Donde quieras · 20 min · 3 rondas',
+      ejercicios: [
+        '3 rondas. Descansa 1 min entre rondas.',
+        ...huecos([
+          { o: ['plancha'], d: '30-60 s' },
+          { o: ['dead_bug', 'bird_dog'], d: '10 por lado' },
+          { o: ['plancha_lateral'], d: '20-40 s por lado' },
+          { o: ['crunch_bicicleta', 'elevacion_piernas'], d: '12-15 reps' },
+          { o: ['superman', 'puente_gluteo'], d: '12 reps' },
+        ], p, v),
+      ],
     }),
   },
   casa_hiit: {
     titulo: 'Circuito HIIT', categoria: 'cardio', lugar: 'casa', icono: '🔥',
-    crear: (p, f) => {
+    crear: (p, f, nivel, v) => {
       const rondas = Math.max(3, Math.round(3 * f));
       return {
         meta: `Casa · ${rondas * 5 + 10} min · ${rondas} rondas`,
         ejercicios: [
           'Calienta 5 min (movilidad y saltos suaves)',
-          `${rondas} rondas de: 40 s trabajo + 20 s descanso en cada ejercicio`,
-          'Jumping jacks · Sentadilla con salto · Mountain climbers · Burpees · Skipping',
-          '1 min de descanso entre rondas',
+          `${rondas} rondas. 1 min de descanso entre rondas.`,
+          ...huecos([
+            { o: ['jumping_jacks', 'patinador', 'skipping'], d: '40 s + 20 s descanso' },
+            { o: ['sentadilla_salto', 'zancada_salto'], d: '40 s + 20 s descanso' },
+            { o: ['mountain_climbers', 'plancha_toques'], d: '40 s + 20 s descanso' },
+            { o: ['burpees', 'flexiones'], d: '40 s + 20 s descanso' },
+            { o: ['skipping', 'jumping_jacks', 'patinador'], d: '40 s + 20 s descanso' },
+          ], p, v),
         ],
       };
     },
   },
   casa_movilidad: {
     titulo: 'Movilidad y estiramientos', categoria: 'movilidad', lugar: 'libre', icono: '🧘',
-    crear: () => ({
+    crear: (p, f, nivel, v) => ({
       meta: 'Donde quieras · 25 min · suave',
-      ejercicios: ['Movilidad de cuello, hombros y cadera', 'Gato-vaca y postura del niño', 'Estiramiento de isquios y cuádriceps', 'Respiración lenta 3 min'],
+      ejercicios: huecos([
+        { o: ['movilidad_cadera', 'circulos_hombros'], d: '2 min' },
+        { o: ['gato_vaca'], d: '10 lentos' },
+        { o: ['postura_nino', 'cobra'], d: '1 min' },
+        { o: ['estiramiento_isquios', 'paloma'], d: '45 s por lado' },
+        { o: ['estiramiento_cuadriceps'], d: '45 s por lado' },
+        { o: ['respiracion'], d: '3 min' },
+      ], p, v),
     }),
   },
   run_suave: {
@@ -97,13 +190,29 @@ const SESIONES = {
   },
   run_intervalos: {
     titulo: 'Series de carrera', categoria: 'cardio', lugar: 'correr', icono: '⚡',
-    crear: (p, f) => {
+    crear: (p, f, nivel, v) => {
       const reps = Math.round(5 * f);
+      const largas = Math.max(3, Math.round(reps * 0.7));
+      const bloques = [
+        { texto: `${reps} × (1 min rápido + 2 min suave)`, min: reps * 3 },
+        { texto: `${largas} × (2 min rápido + 2 min suave)`, min: largas * 4 },
+        { texto: 'Pirámide: 1-2-3-2-1 min rápido, con la mitad de ese tiempo suave entre cada uno', min: 13 },
+      ];
+      const b = elegir(bloques, v);
       return {
-        meta: `Correr · ${reps * 3 + 20} min · intensidad alta`,
-        ejercicios: ['Calienta 10 min trotando', `${reps} × (1 min rápido + 2 min suave)`, 'Vuelta a la calma 10 min trote suave'],
+        meta: `Correr · ${b.min + 20} min · intensidad alta`,
+        ejercicios: ['Calienta 10 min trotando', b.texto, 'Vuelta a la calma 10 min trote suave'],
       };
     },
+  },
+  run_tempo: {
+    titulo: 'Carrera a ritmo', categoria: 'cardio', lugar: 'correr', icono: '⏱️',
+    crear: (p, f, nivel) => ({
+      meta: `Correr · ${min(15, f) + 20} min · ritmo exigente pero controlado`,
+      ejercicios: nivel === 'principiante'
+        ? ['Calienta 10 min trotando suave', `${min(15, f)} min: 3 min a ritmo alegre + 2 min suave`, 'Vuelta a la calma 10 min andando o trotando']
+        : ['Calienta 10 min trotando suave', `${min(15, f)} min seguidos a un ritmo en el que solo puedes decir frases cortas`, 'Vuelta a la calma 10 min trote suave'],
+    }),
   },
   run_larga: {
     titulo: 'Tirada larga', categoria: 'cardio', lugar: 'correr', icono: '🛣️',
@@ -121,20 +230,22 @@ const ALTERNATIVAS = {
   gym_full: ['casa_fuerza'],
   gym_superior: ['casa_fuerza'],
   gym_inferior: ['casa_fuerza'],
+  gym_circuito: ['casa_hiit', 'casa_fuerza'],
   gym_cardio: ['run_suave', 'casa_hiit'],
   casa_fuerza: ['gym_full'],
-  casa_hiit: ['run_intervalos', 'gym_cardio'],
+  casa_hiit: ['run_intervalos', 'gym_cardio', 'gym_circuito'],
   run_suave: ['gym_cardio', 'casa_hiit'],
   run_intervalos: ['casa_hiit', 'gym_cardio'],
+  run_tempo: ['gym_cardio', 'casa_hiit'],
   run_larga: ['gym_cardio', 'casa_hiit'],
 };
 
 // Orden de prioridad por objetivo. Si entrenas N días, cogemos las N primeras.
 const PRIORIDAD = {
-  perder_peso:   ['gym_full', 'run_suave', 'casa_hiit', 'gym_full', 'run_intervalos', 'run_larga', 'casa_movilidad'],
-  ganar_musculo: ['gym_superior', 'gym_inferior', 'run_suave', 'gym_superior', 'gym_inferior', 'casa_hiit', 'casa_movilidad'],
-  resistencia:   ['run_suave', 'run_intervalos', 'run_larga', 'gym_full', 'run_suave', 'casa_movilidad', 'casa_hiit'],
-  salud:         ['gym_full', 'run_suave', 'casa_movilidad', 'casa_fuerza', 'run_suave', 'casa_hiit', 'casa_movilidad'],
+  perder_peso:   ['gym_full', 'run_suave', 'casa_hiit', 'gym_circuito', 'run_intervalos', 'run_larga', 'casa_movilidad'],
+  ganar_musculo: ['gym_superior', 'gym_inferior', 'run_suave', 'gym_superior', 'gym_inferior', 'casa_core', 'casa_movilidad'],
+  resistencia:   ['run_suave', 'run_intervalos', 'run_larga', 'gym_full', 'run_tempo', 'casa_movilidad', 'casa_core'],
+  salud:         ['gym_full', 'run_suave', 'casa_movilidad', 'casa_fuerza', 'run_suave', 'casa_core', 'casa_hiit'],
 };
 
 // ---------- Generar el plan ----------
@@ -163,7 +274,15 @@ function ordenar(ids) {
   return res;
 }
 
-function generarPlan(datos) {
+// Número de la semana (sube 1 cada lunes). Sirve para rotar ejercicios.
+function numeroSemana(lunes) {
+  const [y, m, d] = lunes.split('-').map(Number);
+  const DIA_MS = 86400000;
+  // El 1-1-1970 fue jueves: restamos 4 días para que cada semana empiece en lunes.
+  return Math.floor((Date.UTC(y, m - 1, d) - 4 * DIA_MS) / (7 * DIA_MS));
+}
+
+function generarPlan(datos, semana) {
   const n = datos.dias.length;
   let ids = PRIORIDAD[datos.objetivo].slice(0, n);
   // Con pocos días, mejor cuerpo completo que dividir.
@@ -180,13 +299,15 @@ function generarPlan(datos) {
     if (pos === -1) return { dia: i, descanso: true };
     const id = ids[pos];
     const s = SESIONES[id];
-    return { dia: i, id, titulo: s.titulo, categoria: s.categoria, icono: s.icono, ...s.crear(p, f, datos.nivel) };
+    // Si la misma sesión sale dos veces en la semana, la segunda usa otros ejercicios.
+    const vez = ids.slice(0, pos).filter((x) => x === id).length;
+    return { dia: i, id, titulo: s.titulo, categoria: s.categoria, icono: s.icono, ...s.crear(p, f, datos.nivel, semana + vez) };
   });
 }
 
 function crearConsejos(datos) {
   const c = [];
-  const agua = (datos.peso * 0.035).toFixed(1);
+  const agua = (datos.peso * 0.035).toFixed(1).replace('.', ',');
   c.push(`Bebe unos ${agua} litros de agua al día (35 ml por cada kg de peso).`);
   if (datos.nivel === 'principiante') c.push('Empieza suave. Aprende bien la técnica antes de subir el peso.');
   if (datos.nivel === 'avanzado') c.push('Sube el peso o el ritmo poco a poco cada semana.');
@@ -269,9 +390,16 @@ function mostrar(vista) {
   window.scrollTo(0, 0);
 }
 
+// Un paso es texto. Un ejercicio se abre al tocarlo para ver cómo se hace.
+function pintarEjercicio(e) {
+  if (typeof e === 'string') return `<li class="paso">${e}</li>`;
+  return `<li class="ej"><details><summary><span class="ej-nombre">${e.nombre}</span>` +
+    `<span class="dosis">${e.dosis}</span></summary><p class="como">${e.como}</p></details></li>`;
+}
+
 function pintarPlan() {
   const { datos, hechos } = estado;
-  const plan = generarPlan(datos);
+  const plan = generarPlan(datos, numeroSemana(estado.semana));
   const hoy = (new Date().getDay() + 6) % 7;
 
   $('saludo').textContent = datos.nombre ? `Tu semana, ${datos.nombre}` : 'Tu semana';
@@ -306,7 +434,7 @@ function pintarPlan() {
       div.insertAdjacentHTML('beforeend', '<h3>😴 Descanso</h3><p class="meta">Descansa, camina o estira un poco.</p>');
     } else {
       div.insertAdjacentHTML('beforeend',
-        `<h3>${d.icono} ${d.titulo}</h3><p class="meta">${d.meta}</p><ul>${d.ejercicios.map((e) => `<li>${e}</li>`).join('')}</ul>`);
+        `<h3>${d.icono} ${d.titulo}</h3><p class="meta">${d.meta}</p><ul>${d.ejercicios.map(pintarEjercicio).join('')}</ul>`);
       const chk = document.createElement('label');
       chk.className = 'hecho-check';
       chk.innerHTML = '<input type="checkbox"> <span>Hecho</span>';
