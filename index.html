@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi Planning de Entrenamiento</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Mi Planning de Entrenamiento</h1>
+    <p class="sub">Pon tus datos y elige tus días. Te damos un plan para la semana.</p>
+  </header>
+
+  <main>
+    <!-- Formulario de datos -->
+    <section id="vista-form" class="card">
+      <h2>Tus datos</h2>
+      <form id="form-datos">
+        <div class="grid">
+          <label>Nombre (opcional)
+            <input type="text" id="nombre" maxlength="30" placeholder="Ej: Pablo">
+          </label>
+          <label>Edad
+            <input type="number" id="edad" min="12" max="99" required placeholder="Ej: 30">
+          </label>
+          <label>Peso (kg)
+            <input type="number" id="peso" min="30" max="250" step="0.1" required placeholder="Ej: 75">
+          </label>
+          <label>Nivel
+            <select id="nivel" required>
+              <option value="principiante">Principiante (empiezo ahora)</option>
+              <option value="intermedio">Intermedio (entreno a veces)</option>
+              <option value="avanzado">Avanzado (entreno siempre)</option>
+            </select>
+          </label>
+          <label class="full">Objetivo
+            <select id="objetivo" required>
+              <option value="perder_peso">Perder peso</option>
+              <option value="ganar_musculo">Ganar músculo</option>
+              <option value="resistencia">Mejorar resistencia (correr más)</option>
+              <option value="salud">Salud y estar en forma</option>
+            </select>
+          </label>
+        </div>
+
+        <fieldset>
+          <legend>¿Qué días entrenas?</legend>
+          <div class="chips" id="dias"></div>
+          <p class="hint" id="dias-count">0 días elegidos</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>¿Dónde puedes entrenar?</legend>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" name="lugar" value="gym" checked><span>🏋️ Gimnasio</span></label>
+            <label class="chip"><input type="checkbox" name="lugar" value="correr" checked><span>🏃 Correr</span></label>
+            <label class="chip"><input type="checkbox" name="lugar" value="casa" checked><span>🏠 Casa</span></label>
+          </div>
+        </fieldset>
+
+        <p class="error" id="error"></p>
+        <button type="submit" class="btn">Crear mi plan</button>
+      </form>
+    </section>
+
+    <!-- Plan semanal -->
+    <section id="vista-plan" class="hidden">
+      <div class="card resumen">
+        <div>
+          <h2 id="saludo">Tu semana</h2>
+          <p id="resumen-texto" class="sub"></p>
+        </div>
+        <div class="progreso">
+          <div class="barra"><div id="barra-relleno"></div></div>
+          <p id="progreso-texto">0 de 0 hechos</p>
+        </div>
+        <div class="acciones">
+          <button id="btn-nueva" class="btn sec">Nueva semana</button>
+          <button id="btn-editar" class="btn sec">Cambiar mis datos</button>
+        </div>
+      </div>
+
+      <div id="consejos" class="card consejos"></div>
+      <div id="semana" class="semana"></div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    Tus datos se guardan solo en este navegador. Si tienes dudas de salud, habla con un médico antes de entrenar.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
